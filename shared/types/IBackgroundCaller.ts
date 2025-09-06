@@ -98,6 +98,9 @@ export type SignPersonalMessageResponse = { bytes: string; success: boolean; mes
 export type SignTypedDataRequest = [message: any, accountNumber: number, password: string];
 export type SignTypedDataResponse = { bytes: string; success: boolean; message?: string };
 
+export type SignSparkMessageRequest = [message: string, accountNumber: number, password: string];
+export type SignSparkMessageResponse = { signature: string; success: boolean; message?: string };
+
 export type OpenPopupRequest = [method: string, params: any, id: number, from: string];
 
 export type GetBtcSendDataRequest = [accountNumber: number];
@@ -134,6 +137,7 @@ export interface IBackgroundCaller {
   log(...params: LogRequest): Promise<void>;
   signPersonalMessage(...params: SignPersonalMessageRequest): Promise<SignPersonalMessageResponse>;
   signTypedData(...params: SignTypedDataRequest): Promise<SignTypedDataResponse>;
+  signSparkMessage(...params: SignSparkMessageRequest): Promise<SignSparkMessageResponse>;
   openPopup(...params: OpenPopupRequest): Promise<void>;
   getBtcSendData(...params: GetBtcSendDataRequest): Promise<GetBtcSendDataResponse>;
   getSubMnemonic(...params: GetSubMnemonicRequest): Promise<GetSubMnemonicResponse>;

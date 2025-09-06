@@ -77,7 +77,8 @@ const SignMessage = () => {
       }
 
       if (result?.success) {
-        setSignature(result.bytes || result.signature);
+        const sig = 'bytes' in result ? result.bytes : result.signature;
+        setSignature(sig);
         Alert.alert('Success', 'Message signed successfully!');
       } else {
         throw new Error(result?.message || 'Failed to sign message');
