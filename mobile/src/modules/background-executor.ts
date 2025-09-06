@@ -230,6 +230,42 @@ export const BackgroundExecutor: IBackgroundCaller = {
     }
   },
 
+  async signSparkMessage(message, accountNumber, password) {
+    const encryptedMnemonic = await SecureStorage.getItem(STORAGE_KEY_MNEMONIC);
+
+    if (!encryptedMnemonic.startsWith(ENCRYPTED_PREFIX)) {
+      return {
+        success: false,
+        signature: '',
+        message: 'Mnemonic is not encrypted. Please reinstall the app to fix this issue.',
+      };
+    }
+
+    try {
+      const deviceId = await getDeviceID(SecureStorage, Csprng);
+      const decrypted = await decrypt(encryptedMnemonic.replace(ENCRYPTED_PREFIX, ''), password, deviceId);
+      
+      // Import Spark SDK from the native module
+      const { SparkWallet: NativeSDK, ReactNativeSparkSigner } = require('@buildonspark/spark-sdk/native');
+      
+      // Initialize Spark wallet with the mnemonic
+      const { wallet } = await NativeSDK.initialize({
+        mnemonicOrSeed: decrypted as string,
+        signer: new ReactNativeSparkSigner(),
+        options: {
+          network: 'MAINNET',
+        },
+      });
+      
+      // Sign the message with the identity key
+      const signature = await wallet.signMessageWithIdentityKey(message);
+      
+      return { success: true, signature };
+    } catch (error: any) {
+      return { success: false, signature: '', message: error.message || 'Failed to sign message' };
+    }
+  },
+
   async openPopup(...params: OpenPopupRequest) {
     const bridge = BrowserBridge.getInstance();
     if (bridge) {
