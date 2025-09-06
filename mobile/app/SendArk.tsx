@@ -80,7 +80,7 @@ const SendArk = () => {
         }
         
         const sparkWallet = arkWallet.current as SparkWallet;
-        const success = await sparkWallet.payLightningInvoice(toAddress, 1); // 1% max fee
+        const success = await sparkWallet.payLightningInvoice(toAddress, 5); // 5% max fee, same as SendLightning.tsx
         
         if (!success) {
           throw new Error('Lightning payment failed');
