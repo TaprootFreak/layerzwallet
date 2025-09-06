@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useRouter } from 'expo-router';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, TouchableOpacity, Alert, Text, Clipboard } from 'react-native';
 
 import GradientScreen from '@/components/GradientScreen';
@@ -10,7 +10,7 @@ import { AskPasswordContext } from '@/src/hooks/AskPasswordContext';
 import { BackgroundExecutor } from '@/src/modules/background-executor';
 import { AccountNumberContext } from '@shared/hooks/AccountNumberContext';
 import { NetworkContext } from '@shared/hooks/NetworkContext';
-import { NETWORK_ROOTSTOCK } from '@shared/types/networks';
+import { NETWORK_ROOTSTOCK, NETWORK_SPARK } from '@shared/types/networks';
 
 const SignMessage = () => {
   const router = useRouter();
@@ -21,10 +21,28 @@ const SignMessage = () => {
   const [message, setMessage] = useState('');
   const [signature, setSignature] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [address, setAddress] = useState('');
 
-  // This screen should only be accessible from Rootstock network
-  // But we'll handle it gracefully if accessed from elsewhere
+  // This screen supports both Rootstock and Spark networks
   const isRootstock = network === NETWORK_ROOTSTOCK;
+  const isSpark = network === NETWORK_SPARK;
+  const isSupported = isRootstock || isSpark;
+
+  // Fetch the wallet address on component mount
+  useEffect(() => {
+    const fetchAddress = async () => {
+      try {
+        const walletAddress = await BackgroundExecutor.getAddress(network, accountNumber);
+        setAddress(walletAddress);
+      } catch (error) {
+        console.error('Failed to fetch address:', error);
+      }
+    };
+    
+    if (isSupported) {
+      fetchAddress();
+    }
+  }, [network, accountNumber, isSupported]);
 
   const handleSign = async () => {
     if (!message.trim()) {
@@ -32,8 +50,8 @@ const SignMessage = () => {
       return;
     }
 
-    if (!isRootstock) {
-      Alert.alert('Error', 'Message signing is only available on Rootstock network');
+    if (!isSupported) {
+      Alert.alert('Error', 'Message signing is only available on Rootstock and Spark networks');
       return;
     }
 
@@ -41,18 +59,28 @@ const SignMessage = () => {
     try {
       const password = await askPassword();
       
-      // Use EVM signing for Rootstock (it's an EVM-compatible chain)
-      const result = await BackgroundExecutor.signPersonalMessage(
-        message,
-        accountNumber,
-        password
-      );
+      let result;
+      if (isRootstock) {
+        // Use EVM signing for Rootstock (it's an EVM-compatible chain)
+        result = await BackgroundExecutor.signPersonalMessage(
+          message,
+          accountNumber,
+          password
+        );
+      } else if (isSpark) {
+        // Use Spark-specific signing
+        result = await BackgroundExecutor.signSparkMessage(
+          message,
+          accountNumber,
+          password
+        );
+      }
 
-      if (result.success) {
-        setSignature(result.bytes);
+      if (result?.success) {
+        setSignature(result.bytes || result.signature);
         Alert.alert('Success', 'Message signed successfully!');
       } else {
-        throw new Error(result.message || 'Failed to sign message');
+        throw new Error(result?.message || 'Failed to sign message');
       }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to sign message');
@@ -75,12 +103,21 @@ const SignMessage = () => {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.contentContainer}>
-          {isRootstock ? (
+          {isSupported ? (
             <>
               <ThemedText style={styles.description}>
-                Sign a message with your Rootstock private key. This creates a cryptographic proof 
-                that you control this wallet address on the Rootstock network.
+                Sign a message with your {isRootstock ? 'Rootstock' : 'Spark'} private key. This creates a cryptographic proof 
+                that you control this wallet address on the {isRootstock ? 'Rootstock' : 'Spark'} network.
               </ThemedText>
+
+              {address ? (
+                <View style={styles.addressSection}>
+                  <ThemedText style={styles.addressLabel}>Your {isRootstock ? 'Rootstock' : 'Spark'} Address:</ThemedText>
+                  <View style={styles.addressContainer}>
+                    <Text style={styles.addressText}>{address}</Text>
+                  </View>
+                </View>
+              ) : null}
 
               <View style={styles.inputSection}>
                 <ThemedText style={styles.inputLabel}>Message to Sign</ThemedText>
@@ -108,7 +145,7 @@ const SignMessage = () => {
 
               {signature ? (
                 <View style={styles.resultSection}>
-                  <ThemedText style={styles.resultLabel}>Rootstock Signature:</ThemedText>
+                  <ThemedText style={styles.resultLabel}>{isRootstock ? 'Rootstock' : 'Spark'} Signature:</ThemedText>
                   <View style={styles.signatureContainer}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       <Text style={styles.signatureText}>{signature}</Text>
@@ -124,7 +161,7 @@ const SignMessage = () => {
               <View style={styles.infoSection}>
                 <Ionicons name="information-circle-outline" size={20} color="rgba(255, 255, 255, 0.6)" />
                 <ThemedText style={styles.infoText}>
-                  This signature proves you control the private key for account #{accountNumber} on the Rootstock network without revealing the key itself.
+                  This signature proves you control the private key for account #{accountNumber} on the {isRootstock ? 'Rootstock' : 'Spark'} network without revealing the key itself.
                 </ThemedText>
               </View>
             </>
@@ -132,10 +169,10 @@ const SignMessage = () => {
             <View style={styles.unsupportedSection}>
               <Ionicons name="alert-circle-outline" size={48} color="rgba(255, 255, 255, 0.4)" />
               <ThemedText style={styles.unsupportedText}>
-                Message signing is only available when using the Rootstock network.
+                Message signing is only available when using the Rootstock or Spark networks.
               </ThemedText>
               <ThemedText style={styles.unsupportedSubtext}>
-                Please switch to Rootstock from the home screen to use this feature.
+                Please switch to Rootstock or Spark from the home screen to use this feature.
               </ThemedText>
             </View>
           )}
@@ -156,8 +193,31 @@ const styles = StyleSheet.create({
   },
   description: {
     color: 'rgba(255, 255, 255, 0.8)',
-    marginBottom: 30,
+    marginBottom: 20,
     lineHeight: 20,
+  },
+  addressSection: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  addressLabel: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  addressContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 8,
+    padding: 10,
+  },
+  addressText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontFamily: 'monospace',
+    fontSize: 13,
   },
   inputSection: {
     marginBottom: 20,
