@@ -49,6 +49,9 @@ const backgroundCallerMock2: IBackgroundCaller = {
   signTypedData() {
     throw new Error('Function not implemented.');
   },
+  signSparkMessage() {
+    throw new Error('Function not implemented.');
+  },
   getBtcSendData() {
     throw new Error('Function not implemented.');
   },
