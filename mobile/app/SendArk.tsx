@@ -22,10 +22,16 @@ import { formatBalance } from '@shared/modules/string-utils';
 import { NETWORK_ARK_MUTINYNET, NETWORK_SPARK } from '@shared/types/networks';
 import { SparkWallet } from '@shared/class/wallets/spark-wallet';
 import { LIGHTNING_MAX_FEE_PERCENT } from '@shared/config';
+import { InterfaceLightningWallet } from '@shared/class/wallets/interface-lightning-wallet';
 
 export type SendArkParams = {
   toAddress?: string;
   amount?: string;
+};
+
+// Type guard to check if wallet supports Lightning
+const supportsLightning = (wallet: any): wallet is InterfaceLightningWallet => {
+  return wallet && 'allowLightning' in wallet && wallet.allowLightning === true;
 };
 
 const SendArk = () => {
@@ -75,13 +81,12 @@ const SendArk = () => {
       const isLightningInvoice = toAddress.toLowerCase().startsWith('lnbc') || toAddress.toLowerCase().startsWith('lntb');
       
       if (isLightningInvoice) {
-        // Handle Lightning payment through SparkWallet
-        if (!arkWallet.current || !(arkWallet.current instanceof SparkWallet)) {
-          throw new Error('Lightning payments require Spark wallet');
+        // Handle Lightning payment
+        if (!supportsLightning(arkWallet.current)) {
+          throw new Error('Lightning payments require a wallet with Lightning support');
         }
         
-        const sparkWallet = arkWallet.current as SparkWallet;
-        const success = await sparkWallet.payLightningInvoice(toAddress, LIGHTNING_MAX_FEE_PERCENT);
+        const success = await arkWallet.current.payLightningInvoice(toAddress, LIGHTNING_MAX_FEE_PERCENT);
         
         if (!success) {
           throw new Error('Lightning payment failed');
