@@ -29,11 +29,6 @@ export type SendArkParams = {
   amount?: string;
 };
 
-// Type guard to check if wallet supports Lightning
-const supportsLightning = (wallet: any): wallet is InterfaceLightningWallet => {
-  return wallet && 'allowLightning' in wallet && wallet.allowLightning === true;
-};
-
 const SendArk = () => {
   const params = useLocalSearchParams<SendArkParams>();
   const router = useRouter();
@@ -82,11 +77,12 @@ const SendArk = () => {
       
       if (isLightningInvoice) {
         // Handle Lightning payment
-        if (!supportsLightning(arkWallet.current)) {
+        if (!arkWallet.current || !arkWallet.current.isLightningSupported) {
           throw new Error('Lightning payments require a wallet with Lightning support');
         }
         
-        const success = await arkWallet.current.payLightningInvoice(toAddress, LIGHTNING_MAX_FEE_PERCENT);
+        const lightningWallet = arkWallet.current as InterfaceLightningWallet;
+        const success = await lightningWallet.payLightningInvoice(toAddress, LIGHTNING_MAX_FEE_PERCENT);
         
         if (!success) {
           throw new Error('Lightning payment failed');
