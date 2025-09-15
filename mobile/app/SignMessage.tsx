@@ -57,7 +57,7 @@ const SignMessage = () => {
     try {
       const password = await askPassword();
       
-      // Use EVM signing for Rootstock (it's an EVM-compatible chain)
+      // Use EVM signing for all EVM-compatible chains
       const result = await BackgroundExecutor.signPersonalMessage(
         message,
         accountNumber,
