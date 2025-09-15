@@ -17,14 +17,30 @@ const SignMessage = () => {
   const { network } = useContext(NetworkContext);
   const { accountNumber } = useContext(AccountNumberContext);
   const { askPassword } = useContext(AskPasswordContext);
-  
+
   const [message, setMessage] = useState('');
   const [signature, setSignature] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [address, setAddress] = useState<string>('');
 
   // This screen is available for all EVM-compatible networks
   // But we'll handle it gracefully if accessed from non-EVM networks
   const isEVMNetwork = network ? getIsEVM(network) : false;
+
+  // Fetch the EVM address when component mounts or network/account changes
+  React.useEffect(() => {
+    const fetchAddress = async () => {
+      if (isEVMNetwork && network) {
+        try {
+          const evmAddress = await BackgroundExecutor.getAddress(network, accountNumber);
+          setAddress(evmAddress);
+        } catch (error) {
+          console.error('Failed to fetch EVM address:', error);
+        }
+      }
+    };
+    fetchAddress();
+  }, [network, accountNumber, isEVMNetwork]);
 
   const handleSign = async () => {
     if (!message.trim()) {
@@ -81,6 +97,24 @@ const SignMessage = () => {
                 Sign a message with your EVM private key. This creates a cryptographic proof
                 that you control this wallet address on the {network} network.
               </ThemedText>
+
+              <View style={styles.inputSection}>
+                <ThemedText style={styles.inputLabel}>Signing Address</ThemedText>
+                <View style={styles.addressContainer}>
+                  <Text style={styles.addressText}>{address || 'Loading...'}</Text>
+                  {address && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        Clipboard.setString(address);
+                        Alert.alert('Copied', 'Address copied to clipboard');
+                      }}
+                      style={styles.copyIcon}
+                    >
+                      <Ionicons name="copy-outline" size={16} color="rgba(255, 255, 255, 0.6)" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
 
               <View style={styles.inputSection}>
                 <ThemedText style={styles.inputLabel}>Message to Sign</ThemedText>
@@ -166,6 +200,26 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     marginBottom: 10,
     fontWeight: '500',
+  },
+  addressContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 12,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  addressText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    fontFamily: 'monospace',
+    flex: 1,
+  },
+  copyIcon: {
+    marginLeft: 10,
+    padding: 4,
   },
   messageInput: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
