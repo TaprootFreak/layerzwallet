@@ -10,7 +10,7 @@ import { AskPasswordContext } from '@/src/hooks/AskPasswordContext';
 import { BackgroundExecutor } from '@/src/modules/background-executor';
 import { AccountNumberContext } from '@shared/hooks/AccountNumberContext';
 import { NetworkContext } from '@shared/hooks/NetworkContext';
-import { NETWORK_ROOTSTOCK } from '@shared/types/networks';
+import { getIsEVM } from '@shared/models/network-getters';
 
 const SignMessage = () => {
   const router = useRouter();
@@ -22,9 +22,9 @@ const SignMessage = () => {
   const [signature, setSignature] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // This screen should only be accessible from Rootstock network
-  // But we'll handle it gracefully if accessed from elsewhere
-  const isRootstock = network === NETWORK_ROOTSTOCK;
+  // This screen is available for all EVM-compatible networks
+  // But we'll handle it gracefully if accessed from non-EVM networks
+  const isEVMNetwork = network ? getIsEVM(network) : false;
 
   const handleSign = async () => {
     if (!message.trim()) {
@@ -32,8 +32,8 @@ const SignMessage = () => {
       return;
     }
 
-    if (!isRootstock) {
-      Alert.alert('Error', 'Message signing is only available on Rootstock network');
+    if (!isEVMNetwork) {
+      Alert.alert('Error', 'Message signing is only available on EVM-compatible networks');
       return;
     }
 
@@ -75,11 +75,11 @@ const SignMessage = () => {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.contentContainer}>
-          {isRootstock ? (
+          {isEVMNetwork ? (
             <>
               <ThemedText style={styles.description}>
-                Sign a message with your Rootstock private key. This creates a cryptographic proof 
-                that you control this wallet address on the Rootstock network.
+                Sign a message with your EVM private key. This creates a cryptographic proof
+                that you control this wallet address on the {network} network.
               </ThemedText>
 
               <View style={styles.inputSection}>
@@ -108,7 +108,7 @@ const SignMessage = () => {
 
               {signature ? (
                 <View style={styles.resultSection}>
-                  <ThemedText style={styles.resultLabel}>Rootstock Signature:</ThemedText>
+                  <ThemedText style={styles.resultLabel}>EVM Signature:</ThemedText>
                   <View style={styles.signatureContainer}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       <Text style={styles.signatureText}>{signature}</Text>
@@ -124,7 +124,7 @@ const SignMessage = () => {
               <View style={styles.infoSection}>
                 <Ionicons name="information-circle-outline" size={20} color="rgba(255, 255, 255, 0.6)" />
                 <ThemedText style={styles.infoText}>
-                  This signature proves you control the private key for account #{accountNumber} on the Rootstock network without revealing the key itself.
+                  This signature proves you control the private key for account #{accountNumber} on the {network} network without revealing the key itself.
                 </ThemedText>
               </View>
             </>
@@ -132,10 +132,10 @@ const SignMessage = () => {
             <View style={styles.unsupportedSection}>
               <Ionicons name="alert-circle-outline" size={48} color="rgba(255, 255, 255, 0.4)" />
               <ThemedText style={styles.unsupportedText}>
-                Message signing is only available when using the Rootstock network.
+                Message signing is only available on EVM-compatible networks.
               </ThemedText>
               <ThemedText style={styles.unsupportedSubtext}>
-                Please switch to Rootstock from the home screen to use this feature.
+                Please switch to an EVM-compatible network (Rootstock, Botanix, etc.) from the home screen to use this feature.
               </ThemedText>
             </View>
           )}
